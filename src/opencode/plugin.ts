@@ -9,13 +9,28 @@ type SessionStatusEvent = {
 
 type PermissionUpdatedEvent = {
   type: 'permission.updated'
-  properties: Record<string, unknown>
+  properties: { sessionID: string; [key: string]: unknown }
 }
 
-type OpenCodeEvent = SessionStatusEvent | PermissionUpdatedEvent | { type: string; properties?: unknown }
+type QuestionAskedEvent = {
+  type: 'question.asked'
+  properties: { sessionID: string; [key: string]: unknown }
+}
+
+type OpenCodeEvent =
+  | SessionStatusEvent
+  | PermissionUpdatedEvent
+  | QuestionAskedEvent
+  | { type: string; properties?: Record<string, unknown> }
+
+type OpenCodeClient = {
+  session: {
+    get(options: { path: { id: string } }): Promise<{ data?: { parentID?: string } }>
+  }
+}
 
 type PluginInput = {
-  client: unknown
+  client: OpenCodeClient
   project: unknown
   directory: string
   worktree: string
@@ -23,12 +38,38 @@ type PluginInput = {
   $: unknown
 }
 
-export const vibeHapticPlugin = async (_ctx: PluginInput) => {
+export const vibeHapticPlugin = async (ctx: PluginInput) => {
   const engine = createHapticEngine('opencode')
+  const subprocessCache = new Map<string, boolean>()
+
+  async function isSubprocess(sessionID: string): Promise<boolean> {
+    const cached = subprocessCache.get(sessionID)
+    if (cached !== undefined) return cached
+
+    try {
+      const response = await ctx.client.session.get({ path: { id: sessionID } })
+      const result = response.data?.parentID != null
+      subprocessCache.set(sessionID, result)
+      return result
+    } catch {
+      return false
+    }
+  }
+
+  function getSessionID(event: OpenCodeEvent): string | undefined {
+    const props = event.properties
+    if (props && typeof props === 'object' && 'sessionID' in props) {
+      return props.sessionID as string
+    }
+    return undefined
+  }
 
   return {
     event: async (input: { event: OpenCodeEvent }): Promise<void> => {
       const { event } = input
+
+      const sessionID = getSessionID(event)
+      if (sessionID && (await isSubprocess(sessionID))) return
 
       if (event.type === 'session.idle') {
         engine.triggerForEvent('stop')
