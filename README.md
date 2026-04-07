@@ -1,5 +1,7 @@
 # Preply Vibe Haptic
 
+![Preply Vibe Haptic setup UI](assets/setup.png)
+
 Haptic feedback for your AI coding agents — feel the rhythm of your session through your trackpad.
 
 Get a tactile nudge when Claude finishes a task or needs your attention, without notifications, sounds, or anything that breaks your flow.
