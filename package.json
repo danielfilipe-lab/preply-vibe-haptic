@@ -27,6 +27,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "play": "bun run src/bin/haptic.ts",
+    "install-plugin": "bun run install.ts",
     "setup": "bun run src/bin/setup.ts",
     "prepublishOnly": "bun run build"
   },

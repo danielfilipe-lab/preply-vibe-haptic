@@ -30,34 +30,17 @@ macOS Force Touch trackpads use a Taptic Engine (linear actuator) to simulate ph
 git clone https://github.com/danielfilipe-lab/preply-vibe-haptic.git
 cd preply-vibe-haptic
 
-# 2. Install dependencies and build JS
+# 2. Install dependencies and build
 bun install && bun run build:js
 
-# 3. Pick your trackpad and patterns
+# 3. Register with Claude Code (one-time)
+bun run install-plugin
+
+# 4. Pick your trackpad and patterns
 bun run setup
 ```
 
-### Register with Claude Code
-
-Add the following to `~/.claude/settings.json` (create it if it doesn't exist):
-
-```json
-{
-  "enabledPlugins": {
-    "preply-vibe-haptic@preply-vibe-haptic": true
-  },
-  "extraKnownMarketplaces": {
-    "preply-vibe-haptic": {
-      "source": {
-        "source": "github",
-        "repo": "danielfilipe-lab/preply-vibe-haptic"
-      }
-    }
-  }
-}
-```
-
-Then restart Claude Code. Haptic fires automatically on every response from then on.
+Restart Claude Code after step 3. Haptic fires automatically on every response from then on.
 
 > **Note:** `bun run build:js` is enough for most installs — the native binary is pre-built and committed to the repo. Only run `bun run build` (full build with Rust) if you're modifying the native module.
 
