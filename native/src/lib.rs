@@ -23,8 +23,6 @@ mod macos {
             matching: CFMutableDictionaryRef,
             existing: *mut u32,
         ) -> IOReturn;
-        pub fn IOServiceGetMatchingService(main_port: u32, matching: CFMutableDictionaryRef)
-            -> u32;
         pub fn IOIteratorNext(iterator: u32) -> u32;
         pub fn IORegistryEntryCreateCFProperty(
             entry: u32,
@@ -167,60 +165,14 @@ mod macos {
         devices
     }
 
-    pub fn is_clamshell_closed() -> bool {
-        unsafe {
-            let matching = IOServiceMatching(b"IOPMrootDomain\0".as_ptr() as *const i8);
-            if matching.is_null() {
-                return false;
-            }
-
-            let service = IOServiceGetMatchingService(0, matching);
-            if service == IO_OBJECT_NULL {
-                return false;
-            }
-
-            let key = CFStringCreateWithCString(
-                ptr::null(),
-                b"AppleClamshellState\0".as_ptr() as *const i8,
-                K_CF_STRING_ENCODING_UTF8,
-            );
-
-            let clamshell_ref = IORegistryEntryCreateCFProperty(service, key, ptr::null(), 0);
-            let is_closed = if !clamshell_ref.is_null() {
-                let is_boolean = CFGetTypeID(clamshell_ref) == CFBooleanGetTypeID();
-                let result = if is_boolean {
-                    CFBooleanGetValue(clamshell_ref)
-                } else {
-                    false
-                };
-                CFRelease(clamshell_ref);
-                result
-            } else {
-                false
-            };
-
-            CFRelease(key as *const c_void);
-            IOObjectRelease(service);
-
-            is_closed
-        }
-    }
-
     pub fn select_trackpad_device() -> Option<u64> {
         let devices = find_all_trackpad_devices();
         if devices.is_empty() {
             return None;
         }
 
-        if is_clamshell_closed() {
-            // Prefer external trackpad when lid is closed
-            if let Some(&(id, _)) = devices.iter().find(|(_, builtin)| !builtin) {
-                return Some(id);
-            }
-        }
-
-        // Prefer built-in when lid is open, or fallback to any available
-        if let Some(&(id, _)) = devices.iter().find(|(_, builtin)| *builtin) {
+        // Prefer external trackpad, fallback to built-in
+        if let Some(&(id, _)) = devices.iter().find(|(_, builtin)| !builtin) {
             return Some(id);
         }
 
