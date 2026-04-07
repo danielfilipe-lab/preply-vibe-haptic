@@ -1,11 +1,13 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
+var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
 // src/claude/hook.ts
 import { appendFileSync } from "node:fs";
 import { homedir as homedir2 } from "node:os";
 
 // src/haptic.ts
-import { createRequire } from "node:module";
+import { createRequire as createRequire2 } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -55,10 +57,17 @@ function loadConfig(agent = "claude") {
 // src/patterns.ts
 var DEFAULT_INTENSITY = 1;
 var DEFAULT_PATTERNS = {
-  vibe: { beat: "6/0.8 3/1.0   6/1.0" },
-  alert: { beat: "6/0.5 6/1.0 6/0.5" },
-  dopamine: { beat: "6666666 5/1.0 4/1.0 3/1.0", intensity: 0.1 },
-  noise: { beat: "6543654365436543" }
+  vibe: { label: "Vibe       — soft-firm double", beat: "6/0.8 3/1.0   6/1.0" },
+  knock: { label: "Knock      — two firm knocks", beat: "6/1.0  6/1.0" },
+  thud: { label: "Thud       — single heavy hit", beat: "6/1.5" },
+  confirm: { label: "Confirm    — soft then firm", beat: "4/0.6  6/1.0" },
+  heartbeat: { label: "Heartbeat  — lub-dub pulse", beat: "6/0.4 6/1.0   6/0.4 6/1.0" },
+  pulse: { label: "Pulse      — rising build-up", beat: "3/0.5 4/0.7 5/0.9 6/1.1" },
+  dopamine: { label: "Dopamine   — reward burst", beat: "6666666 5/1.0 4/1.0 3/1.0", intensity: 0.1 },
+  alert: { label: "Alert      — soft-hard-soft", beat: "6/0.5 6/1.0 6/0.5" },
+  chirp: { label: "Chirp      — rising tap sequence", beat: "3/0.8 4/0.8 5/0.8 6/0.8" },
+  tick: { label: "Tick       — single light tap", beat: "3/0.6" },
+  noise: { label: "Noise      — rapid texture burst", beat: "6543654365436543" }
 };
 function resolvePattern(nameOrBeat, patterns) {
   const isInlineBeat = /^[3-6/.\s]+$/.test(nameOrBeat);
@@ -136,18 +145,34 @@ class HapticEngine {
   }
   resolveDeviceId() {
     const preference = this.config.device ?? "auto";
+    this.debug("resolveDeviceId", { preference, hasListDevices: !!this.nativeModule?.listDevices });
     if (preference === "auto" || !this.nativeModule?.listDevices)
       return null;
     const devices = this.nativeModule.listDevices();
+    this.debug("listDevices result", devices.map((d) => ({ id: d.id.toString(), isBuiltin: d.isBuiltin })));
+    let result = null;
     if (preference === "external")
-      return devices.find((d) => !d.isBuiltin)?.id ?? null;
-    if (preference === "builtin")
-      return devices.find((d) => d.isBuiltin)?.id ?? null;
-    try {
-      return BigInt(preference);
-    } catch {
-      return null;
-    }
+      result = devices.find((d) => !d.isBuiltin)?.id ?? null;
+    else if (preference === "builtin")
+      result = devices.find((d) => d.isBuiltin)?.id ?? null;
+    else
+      try {
+        result = BigInt(preference);
+      } catch {
+        result = null;
+      }
+    this.debug("resolved deviceId", result?.toString() ?? "null");
+    return result;
+  }
+  debug(msg, data) {
+    if (process.env.VIBE_HAPTIC_DEBUG !== "1")
+      return;
+    const { appendFileSync, existsSync: existsSync2, mkdirSync } = __require("node:fs");
+    const { homedir: homedir2 } = __require("node:os");
+    const logPath = `${homedir2()}/.preply-vibe-haptic-debug.log`;
+    const line = `[haptic] ${msg}${data !== undefined ? ": " + JSON.stringify(data, (_, v) => typeof v === "bigint" ? v.toString() + "n" : v) : ""}
+`;
+    appendFileSync(logPath, line);
   }
   loadNativeModule() {
     if (process.platform !== "darwin") {
@@ -155,10 +180,23 @@ class HapticEngine {
     }
     try {
       const currentDir = dirname(fileURLToPath(import.meta.url));
-      const nativePath = join(currentDir, "..", "native", "vibe-haptic-native.node");
-      const require2 = createRequire(import.meta.url);
-      this.nativeModule = require2(nativePath);
-    } catch {}
+      const req = createRequire2(import.meta.url);
+      const candidates = [
+        join(currentDir, "..", "native", "preply-vibe-haptic-native.node"),
+        join(currentDir, "..", "native", "vibe-haptic-native.node")
+      ];
+      for (const nativePath of candidates) {
+        try {
+          this.nativeModule = req(nativePath);
+          this.debug("native module loaded", { path: nativePath, hasListDevices: !!this.nativeModule?.listDevices, hasActuateWithDeviceId: !!this.nativeModule?.actuateWithDeviceId });
+          break;
+        } catch {}
+      }
+      if (!this.nativeModule)
+        throw new Error("no native module found");
+    } catch (e) {
+      this.debug("native module load failed", String(e));
+    }
   }
   playBeat(pattern) {
     return new Promise((resolve) => {
@@ -181,8 +219,10 @@ class HapticEngine {
           setTimeout(playNext, (token.pauseCount ?? 1) * PAUSE_DELAY_MS);
         } else {
           if (this.deviceId !== null && module.actuateWithDeviceId) {
+            this.debug("actuating with device", { deviceId: this.deviceId.toString(), actuation: token.actuation, intensity: token.intensity });
             module.actuateWithDeviceId(this.deviceId, token.actuation, token.intensity);
           } else {
+            this.debug("actuating via auto-select", { actuation: token.actuation, intensity: token.intensity });
             module.actuate(token.actuation, token.intensity);
           }
           playNext();
@@ -215,7 +255,7 @@ var DEBUG = process.env.VIBE_HAPTIC_DEBUG === "1";
 function debug(message, data) {
   if (!DEBUG)
     return;
-  const logPath = `${homedir2()}/.vibe-haptic-debug.log`;
+  const logPath = `${homedir2()}/.preply-vibe-haptic-debug.log`;
   const timestamp = new Date().toISOString();
   const logLine = data ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}
 ` : `[${timestamp}] ${message}

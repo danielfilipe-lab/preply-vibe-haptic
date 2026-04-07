@@ -3,6 +3,7 @@ export type HapticEvent = 'stop' | 'prompt'
 export interface PatternConfig {
   beat: string
   intensity?: number
+  label?: string
 }
 
 export interface HapticConfig {

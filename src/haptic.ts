@@ -78,17 +78,29 @@ export class HapticEngine {
 
   private resolveDeviceId(): bigint | null {
     const preference = this.config.device ?? 'auto'
+    this.debug('resolveDeviceId', { preference, hasListDevices: !!this.nativeModule?.listDevices })
+
     if (preference === 'auto' || !this.nativeModule?.listDevices) return null
 
     const devices = this.nativeModule.listDevices()
-    if (preference === 'external') return devices.find((d) => !d.isBuiltin)?.id ?? null
-    if (preference === 'builtin') return devices.find((d) => d.isBuiltin)?.id ?? null
+    this.debug('listDevices result', devices.map((d) => ({ id: d.id.toString(), isBuiltin: d.isBuiltin })))
 
-    try {
-      return BigInt(preference)
-    } catch {
-      return null
-    }
+    let result: bigint | null = null
+    if (preference === 'external') result = devices.find((d) => !d.isBuiltin)?.id ?? null
+    else if (preference === 'builtin') result = devices.find((d) => d.isBuiltin)?.id ?? null
+    else try { result = BigInt(preference) } catch { result = null }
+
+    this.debug('resolved deviceId', result?.toString() ?? 'null')
+    return result
+  }
+
+  private debug(msg: string, data?: unknown) {
+    if (process.env.VIBE_HAPTIC_DEBUG !== '1') return
+    const { appendFileSync, existsSync, mkdirSync } = require('node:fs')
+    const { homedir } = require('node:os')
+    const logPath = `${homedir()}/.preply-vibe-haptic-debug.log`
+    const line = `[haptic] ${msg}${data !== undefined ? ': ' + JSON.stringify(data, (_, v) => typeof v === 'bigint' ? v.toString() + 'n' : v) : ''}\n`
+    appendFileSync(logPath, line)
   }
 
   private loadNativeModule() {
@@ -97,12 +109,23 @@ export class HapticEngine {
     }
 
     try {
-      // Use import.meta.url to resolve path at runtime, not build time
       const currentDir = dirname(fileURLToPath(import.meta.url))
-      const nativePath = join(currentDir, '..', 'native', 'vibe-haptic-native.node')
-      const require = createRequire(import.meta.url)
-      this.nativeModule = require(nativePath)
-    } catch {}
+      const req = createRequire(import.meta.url)
+      const candidates = [
+        join(currentDir, '..', 'native', 'preply-vibe-haptic-native.node'),
+        join(currentDir, '..', 'native', 'vibe-haptic-native.node'),
+      ]
+      for (const nativePath of candidates) {
+        try {
+          this.nativeModule = req(nativePath)
+          this.debug('native module loaded', { path: nativePath, hasListDevices: !!this.nativeModule?.listDevices, hasActuateWithDeviceId: !!this.nativeModule?.actuateWithDeviceId })
+          break
+        } catch {}
+      }
+      if (!this.nativeModule) throw new Error('no native module found')
+    } catch (e) {
+      this.debug('native module load failed', String(e))
+    }
   }
 
   playBeat(pattern: ResolvedPattern): Promise<void> {
@@ -130,8 +153,10 @@ export class HapticEngine {
           setTimeout(playNext, (token.pauseCount ?? 1) * PAUSE_DELAY_MS)
         } else {
           if (this.deviceId !== null && module.actuateWithDeviceId) {
+            this.debug('actuating with device', { deviceId: this.deviceId.toString(), actuation: token.actuation, intensity: token.intensity })
             module.actuateWithDeviceId(this.deviceId, token.actuation!, token.intensity!)
           } else {
+            this.debug('actuating via auto-select', { actuation: token.actuation, intensity: token.intensity })
             module.actuate(token.actuation!, token.intensity!)
           }
           playNext()

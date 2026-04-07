@@ -1,5 +1,5 @@
 [package]
-name = "vibe-haptic-native"
+name = "preply-vibe-haptic-native"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,13 +1,13 @@
 {
-  "name": "@vibe-haptic/native",
+  "name": "@preply/vibe-haptic-native",
   "version": "0.1.0",
   "description": "Native Rust bindings for haptic feedback via napi-rs",
   "main": "./index.js",
   "types": "./index.d.ts",
   "napi": {
-    "name": "vibe-haptic-native",
+    "name": "preply-vibe-haptic-native",
     "package": {
-      "name": "@vibe-haptic/native"
+      "name": "@preply/vibe-haptic-native"
     }
   },
   "scripts": {

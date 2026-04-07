@@ -6,7 +6,7 @@ const DEBUG = process.env.VIBE_HAPTIC_DEBUG === '1'
 
 function debug(message: string, data?: unknown) {
   if (!DEBUG) return
-  const logPath = `${homedir()}/.vibe-haptic-debug.log`
+  const logPath = `${homedir()}/.preply-vibe-haptic-debug.log`
   const timestamp = new Date().toISOString()
   const logLine = data ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}\n` : `[${timestamp}] ${message}\n`
   appendFileSync(logPath, logLine)

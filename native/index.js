@@ -1,5 +1,5 @@
 const path = require('node:path')
-const nativeModule = require(path.join(__dirname, 'vibe-haptic-native.node'))
+const nativeModule = require(path.join(__dirname, 'preply-vibe-haptic-native.node'))
 
 module.exports = {
   isSupported: nativeModule.isSupported,
