@@ -8,6 +8,8 @@ export interface PatternConfig {
 export interface HapticConfig {
   patterns?: Record<string, string | PatternConfig>
   events?: Partial<Record<HapticEvent, string>>
+  /** 'auto' | 'builtin' | 'external' | '<numeric device id>' */
+  device?: string
 }
 
 export interface ResolvedPattern {

@@ -29,7 +29,8 @@ function getConfigPath(agent, scope) {
 function mergeConfig(base, override) {
   return {
     patterns: { ...base.patterns, ...override.patterns },
-    events: { ...base.events, ...override.events }
+    events: { ...base.events, ...override.events },
+    device: override.device ?? base.device
   };
 }
 function loadConfig(agent = "claude") {
@@ -123,12 +124,29 @@ function parseBeat(beat, defaultIntensity) {
 class HapticEngine {
   config;
   nativeModule = null;
+  deviceId = null;
   constructor(config, options) {
     this.config = config;
     if (options?.nativeModule !== undefined) {
       this.nativeModule = options.nativeModule;
     } else {
       this.loadNativeModule();
+    }
+    this.deviceId = this.resolveDeviceId();
+  }
+  resolveDeviceId() {
+    const preference = this.config.device ?? "auto";
+    if (preference === "auto" || !this.nativeModule?.listDevices)
+      return null;
+    const devices = this.nativeModule.listDevices();
+    if (preference === "external")
+      return devices.find((d) => !d.isBuiltin)?.id ?? null;
+    if (preference === "builtin")
+      return devices.find((d) => d.isBuiltin)?.id ?? null;
+    try {
+      return BigInt(preference);
+    } catch {
+      return null;
     }
   }
   loadNativeModule() {
@@ -162,7 +180,11 @@ class HapticEngine {
         if (token.type === "pause") {
           setTimeout(playNext, (token.pauseCount ?? 1) * PAUSE_DELAY_MS);
         } else {
-          module.actuate(token.actuation, token.intensity);
+          if (this.deviceId !== null && module.actuateWithDeviceId) {
+            module.actuateWithDeviceId(this.deviceId, token.actuation, token.intensity);
+          } else {
+            module.actuate(token.actuation, token.intensity);
+          }
           playNext();
         }
       };

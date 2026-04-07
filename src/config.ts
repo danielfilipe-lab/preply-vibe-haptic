@@ -23,6 +23,7 @@ function mergeConfig(base: HapticConfig, override: Partial<HapticConfig>): Hapti
   return {
     patterns: { ...base.patterns, ...(override.patterns as Record<string, string | PatternConfig>) },
     events: { ...base.events, ...override.events },
+    device: override.device ?? base.device,
   }
 }
 

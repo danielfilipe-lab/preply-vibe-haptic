@@ -17,7 +17,7 @@
   "scripts": {
     "clean": "rm -rf dist native/target native/*.node",
     "build": "bun run build:native && bun build.ts",
-    "build:native": "bun run --cwd native build",
+    "build:native": "PATH=\"$HOME/.cargo/bin:$PATH\" bun run --cwd native build",
     "dev:claude": "bun run build && claude --plugin-dir ./",
     "dev:opencode": "bun run build && OPENCODE_CONFIG_CONTENT=\"{\\\"plugin\\\": [\\\"file://$PWD/dist/index.js\\\"]}\" opencode",
     "test": "bun test",
@@ -26,6 +26,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "play": "bun run src/bin/haptic.ts",
+    "setup": "bun run src/bin/setup.ts",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {},

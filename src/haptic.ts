@@ -51,7 +51,11 @@ export function parseBeat(beat: string, defaultIntensity: number): BeatToken[] {
   return tokens
 }
 
-export type NativeModule = { actuate: (actuation: number, intensity: number) => void }
+export type NativeModule = {
+  actuate: (actuation: number, intensity: number) => void
+  listDevices?: () => { id: bigint; isBuiltin: boolean }[]
+  actuateWithDeviceId?: (deviceId: bigint, actuation: number, intensity: number) => void
+}
 
 export interface HapticEngineOptions {
   nativeModule?: NativeModule | null
@@ -60,6 +64,7 @@ export interface HapticEngineOptions {
 export class HapticEngine {
   private config: HapticConfig
   private nativeModule: NativeModule | null = null
+  private deviceId: bigint | null = null
 
   constructor(config: HapticConfig, options?: HapticEngineOptions) {
     this.config = config
@@ -67,6 +72,22 @@ export class HapticEngine {
       this.nativeModule = options.nativeModule
     } else {
       this.loadNativeModule()
+    }
+    this.deviceId = this.resolveDeviceId()
+  }
+
+  private resolveDeviceId(): bigint | null {
+    const preference = this.config.device ?? 'auto'
+    if (preference === 'auto' || !this.nativeModule?.listDevices) return null
+
+    const devices = this.nativeModule.listDevices()
+    if (preference === 'external') return devices.find((d) => !d.isBuiltin)?.id ?? null
+    if (preference === 'builtin') return devices.find((d) => d.isBuiltin)?.id ?? null
+
+    try {
+      return BigInt(preference)
+    } catch {
+      return null
     }
   }
 
@@ -108,7 +129,11 @@ export class HapticEngine {
         if (token.type === 'pause') {
           setTimeout(playNext, (token.pauseCount ?? 1) * PAUSE_DELAY_MS)
         } else {
-          module.actuate(token.actuation!, token.intensity!)
+          if (this.deviceId !== null && module.actuateWithDeviceId) {
+            module.actuateWithDeviceId(this.deviceId, token.actuation!, token.intensity!)
+          } else {
+            module.actuate(token.actuation!, token.intensity!)
+          }
           playNext()
         }
       }

@@ -1,6 +1,12 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
+#[napi(object)]
+pub struct TrackpadDevice {
+    pub id: BigInt,
+    pub is_builtin: bool,
+}
+
 #[cfg(target_os = "macos")]
 mod macos {
     use std::ffi::c_void;
@@ -144,8 +150,8 @@ mod macos {
                                 CFRelease(builtin_ref);
                                 result
                             } else {
-                                // Assume built-in if property is missing
-                                true
+                                // No MT Built-In property → likely external (built-in always reports this)
+                                false
                             };
 
                             devices.push((device_id as u64, is_builtin));
@@ -193,6 +199,53 @@ fn select_trackpad_device() -> Option<u64> {
 #[napi]
 pub fn is_supported() -> bool {
     select_trackpad_device().is_some()
+}
+
+#[napi]
+pub fn list_devices() -> Vec<TrackpadDevice> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::find_all_trackpad_devices()
+            .into_iter()
+            .map(|(id, is_builtin)| TrackpadDevice {
+                id: BigInt { sign_bit: false, words: vec![id] },
+                is_builtin,
+            })
+            .collect()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        vec![]
+    }
+}
+
+#[napi]
+pub fn actuate_with_device_id(device_id: BigInt, actuation_id: u32, intensity: f64) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let id = device_id.words.first().copied().unwrap_or(0);
+        unsafe {
+            let actuator = macos::MTActuatorCreateFromDeviceID(id);
+            if actuator.is_null() {
+                return Err(Error::from_reason("Failed to create actuator"));
+            }
+
+            let open_result = macos::MTActuatorOpen(actuator);
+            if open_result != 0 {
+                macos::MTActuatorClose(actuator);
+                return Err(Error::from_reason("Failed to open actuator"));
+            }
+
+            macos::MTActuatorActuate(actuator, actuation_id as i32, 0, 0.0, intensity as f32);
+            macos::MTActuatorClose(actuator);
+        }
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(Error::from_reason("Haptic feedback only supported on macOS"))
+    }
 }
 
 #[napi]
