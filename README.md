@@ -1,125 +1,157 @@
-# Vibe Haptic 🫨
+# Preply Vibe Haptic
 
-Haptic feedback from your coding agents.
+Haptic feedback for your AI coding agents — feel the rhythm of your session through your trackpad.
 
-![Vibe Haptic](https://github.com/user-attachments/assets/4e80abbf-e61a-43b1-ad17-14ea8f480cdd)
-
-Get tactile feedback when your AI agent completes tasks, encounters errors, or requests input — feel the rhythm of your coding session through your MacBook's trackpad.
-
-## Why?
-
-"Why not just use system notifications?"
-
-I tried that. Banners popping up, sounds dinging — it felt noisy and annoying. Every notification pulled my eyes away from what I was doing, broke my flow, and honestly just became another thing to dismiss.
-
-I wanted something quieter. A subtle nudge that says "hey, I'm done" without screaming for attention. Something I could feel without having to look. (I'm the kind of person who always has Do Not Disturb on.)
-
-That's what haptic feedback does — it's silent, ambient, and stays out of your way until you need it.
+Get a tactile nudge when Claude finishes a task or needs your attention, without notifications, sounds, or anything that breaks your flow.
 
 ## How It Works
 
-Modern MacBooks have a Force Touch trackpad that doesn't physically click. Instead, it uses a linear actuator (Taptic Engine) to simulate the sensation of a click through precise vibrations.
+macOS Force Touch trackpads use a Taptic Engine (linear actuator) to simulate physical clicks. Preply Vibe Haptic taps into macOS's private `MultitouchSupport.framework` to trigger haptic actuations directly — including on an **external Magic Trackpad**.
 
-Vibe Haptic taps into macOS's private `MultitouchSupport.framework` to trigger these haptic actuations programmatically. When your AI agent finishes a task or needs attention, the trackpad vibrates with distinct patterns you can feel under your fingers.
+## What Triggers It
+
+| Event | When |
+|-------|------|
+| `stop` | Claude finishes every response |
+| `prompt` | Claude needs input — permission requests, tool approvals |
 
 ## Installation
 
-### Claude Code
+### Prerequisites
+
+- macOS with a Force Touch trackpad (built-in or Magic Trackpad)
+- [Bun](https://bun.sh) installed
+- Node.js (for the hook runtime)
+
+### Setup
 
 ```bash
-claude plugin marketplace add devxoul/vibe-haptic
-claude plugin install vibe-haptic
+# 1. Clone the repo
+git clone https://github.com/danielfilipe-lab/vibe-haptic.git
+cd vibe-haptic
+
+# 2. Install dependencies and build
+bun install && bun run build:js
+
+# 3. Register the plugin with Claude Code (one-time)
+claude plugin add file://$PWD
+
+# 4. Pick your trackpad and patterns
+bun run setup
 ```
 
-Or within Claude Code:
+Then just run `claude` normally — haptic fires automatically on every response.
+
+> **Note:** `bun run build:js` is enough for most installs — the native binary is pre-built and committed to the repo. Only run `bun run build` (full build with Rust) if you're modifying the native module.
+
+## Setup UI
+
+Run `bun run setup` for an interactive picker:
 
 ```
-/plugin marketplace add devxoul/vibe-haptic
-/plugin install vibe-haptic
+preply-vibe-haptic setup
+
+Trackpad
+  ❯ Magic Trackpad   (external)
+    Built-in Trackpad (built-in)
+
+Task complete pattern
+  ❯ Knock      — two firm knocks
+    Heartbeat  — lub-dub pulse
+    ...
+
+Needs attention pattern
+  ❯ Alert      — soft-hard-soft
+    Chirp      — rising tap sequence
+    ...
+
+[↑↓] Navigate  [Tab] Switch section  [T] Test  [S] Save & quit  [Q] Quit
 ```
 
-### OpenCode
+- **Tab** switches between sections (Trackpad / Task complete / Needs attention)
+- **↑↓** navigates within a section — patterns fire as you scroll so you can feel them
+- **T** repeats the current pattern on demand
+- **S** saves and exits
 
-Add to your `opencode.jsonc`:
+Preferences are saved to `~/.claude/vibe-haptic.json`.
 
-```jsonc
-{
-  "plugins": [
-    "vibe-haptic@1.1.0"
-  ]
-}
-```
+## Patterns
 
-## Configuration
+### Built-in Patterns
 
-Everything works out of the box — just install and go. But if you want to tweak the patterns or map different events, here's how.
+| Pattern | Description | Default for |
+|---------|-------------|-------------|
+| `vibe` | Soft-firm double tap | — |
+| `knock` | Two firm knocks | — |
+| `thud` | Single heavy hit | — |
+| `confirm` | Soft then firm | — |
+| `heartbeat` | Lub-dub pulse | — |
+| `pulse` | Rising build-up | — |
+| `dopamine` | Reward burst | — |
+| `alert` | Soft-hard-soft | `prompt` |
+| `chirp` | Rising tap sequence | — |
+| `tick` | Single light tap | — |
+| `noise` | Rapid texture burst | — |
 
-### Configuration File
+### Custom Patterns
 
-Create `vibe-haptic.json` in your config directory:
-
-- **Claude Code**: `~/.claude/vibe-haptic.json` or `.claude/vibe-haptic.json`
-- **OpenCode**: `~/.config/opencode/vibe-haptic.json` or `.opencode/vibe-haptic.json`
+Add custom patterns to `~/.claude/vibe-haptic.json`:
 
 ```json
 {
-  "patterns": {
-    "success": { "beat": "6/1.5 6/0.8  4/0.5" },
-    "error": { "beat": "6/2.0 6/2.0 6/2.0" }
-  },
+  "device": "external",
   "events": {
-    "stop": "dopamine",
-    "prompt": "alert"
+    "stop": "knock",
+    "prompt": "chirp"
+  },
+  "patterns": {
+    "my-pattern": { "beat": "6/1.0  4/0.5  6/1.0" }
   }
 }
 ```
 
-### Events
-
-Events map agent actions to haptic patterns:
-
-| Event | Trigger | Claude Code | OpenCode |
-|-------|---------|-------------|----------|
-| `stop` | Agent finishes and becomes idle | ✓ | ✓ |
-| `prompt` | Agent asks for input (select option, permission, etc.) | ✓ | ✓ |
-
-#### Trigger Details
-
-**`stop` event** — Fires when the agent completes its work:
-- **Claude Code**: Triggered by the `Stop` hook event when the agent finishes responding
-- **OpenCode**: Triggered when session status changes to `idle`
-
-**`prompt` event** — Fires when the agent needs your attention:
-- **Claude Code**: Triggered by `Notification` hook events (permission requests, tool approvals, etc.)
-- **OpenCode**: Triggered by `permission.updated` or `question.asked` events
-
-### Beat Patterns
-
-Haptic feedback is defined using a beat notation:
+### Beat Notation
 
 ```
-"6/0.8 4/1.0  6/0.5"
+"6/0.8 3/1.0   6/1.0"
 ```
 
-- **Digits (3-6)**: Actuation strength — `3` minimal, `4` medium, `5` weak, `6` strong
-- **`/intensity`**: Optional intensity (0.0-2.0) — `6/0.5` = strong actuation at half intensity
-- **Spaces**: Pauses between taps (100ms per space)
+- **Digits 3–6** — actuation strength (`3` = lightest, `6` = strongest)
+- **`/intensity`** — multiplier from 0.0 to 2.0
+- **Spaces** — pauses (100ms per space)
 
-Examples:
-- `6 6 6` — three strong taps with short pauses
-- `6/2.0 6/0.5` — loud tap followed by soft tap
-- `66` — rapid double tap (no pause)
-- `6  6` — two taps with longer pause
+## Configuration Reference
 
-### Built-in Patterns
+`~/.claude/vibe-haptic.json`:
 
-| Pattern | Beat | Description |
-|---------|------|-------------|
-| `vibe` | `6/0.8 3/1.0   6/1.0` | Signature rhythm (default for stop event) |
-| `alert` | `6/0.5 6/1.0 6/0.5` | Attention pulse (default for prompt event) |
-| `dopamine` | `6666666 5/1.0 4/1.0 3/1.0` | Reward cascade |
-| `noise` | `6543654365436543` | Rapid texture |
+| Field | Values | Description |
+|-------|--------|-------------|
+| `device` | `"external"`, `"builtin"`, `"auto"` | Which trackpad to use |
+| `events.stop` | pattern name | Pattern for task complete |
+| `events.prompt` | pattern name | Pattern for attention needed |
+| `patterns` | `{ name: { beat, intensity? } }` | Custom patterns |
 
-## License
+## Rebuilding the Native Module
 
-MIT
+Only needed if you change `native/src/lib.rs`:
+
+```bash
+# Requires Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+bun run build  # rebuilds native + JS
+```
+
+## Testing a Pattern Directly
+
+```bash
+# Named pattern
+bun run play knock
+
+# Custom beat
+bun run play "6/1.0  6/1.0"
+
+# Simulate a hook event
+echo '{"session_id":"test","transcript_path":"/tmp","cwd":"/tmp","hook_event_name":"Stop"}' \
+  | node hooks/haptic-hook.js
+```

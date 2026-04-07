@@ -18,6 +18,7 @@
     "clean": "rm -rf dist native/target native/*.node",
     "build": "bun run build:native && bun build.ts",
     "build:native": "PATH=\"$HOME/.cargo/bin:$PATH\" bun run --cwd native build",
+    "build:js": "bun build.ts",
     "dev:claude": "bun run build && claude --plugin-dir ./",
     "dev:opencode": "bun run build && OPENCODE_CONFIG_CONTENT=\"{\\\"plugin\\\": [\\\"file://$PWD/dist/index.js\\\"]}\" opencode",
     "test": "bun test",

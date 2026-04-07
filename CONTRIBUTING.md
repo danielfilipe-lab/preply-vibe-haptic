@@ -1,118 +1,83 @@
 # Contributing
 
-Thank you for your interest in contributing to Vibe Haptic!
+## Prerequisites
 
-## Development Setup
-
-### Prerequisites
-
-- **Bun** v1.0+ — JavaScript runtime and package manager
-- **Rust** toolchain — for building the native module
-- **Xcode Command Line Tools** — required for macOS development
+- **Bun** v1.0+
+- **Rust** toolchain (only needed to rebuild the native module)
+- **Xcode Command Line Tools**
 
 ```bash
-# Install Rust if needed
+# Rust (only if modifying native/src/lib.rs)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Install Xcode CLI tools if needed
+# Xcode CLI tools
 xcode-select --install
 ```
 
-### Building
+## Build Scripts
+
+| Command | What it does |
+|---------|-------------|
+| `bun run build` | Full build — native Rust module + JS/TS |
+| `bun run build:js` | JS/TS only — no Rust required |
+| `bun run build:native` | Native module only |
+| `bun run setup` | Interactive trackpad + pattern picker |
+| `bun run play <pattern>` | Test a haptic pattern in the terminal |
+| `bun test` | Run tests |
+| `bun run typecheck` | TypeScript type check |
+| `bun run lint` | Lint with Biome |
+| `bun run lint:fix` | Auto-fix lint issues |
+
+## Local Development
 
 ```bash
-# Install dependencies
 bun install
-
-# Build everything (native module + TypeScript)
 bun run build
-
-# Build native module only
-bun run build:native
+claude plugin add file://$PWD  # register with Claude Code
+bun run setup                   # pick trackpad & patterns
 ```
 
-### Running Locally
+Then run `claude` normally — the plugin loads from your local directory.
+
+## Testing the Hook Directly
+
+Simulate a Claude Code Stop event without running a full session:
 
 ```bash
-bun run dev:claude
-bun run dev:opencode
+echo '{"session_id":"test","transcript_path":"/tmp","cwd":"/tmp","hook_event_name":"Stop"}' \
+  | node hooks/haptic-hook.js
 ```
 
-### Running Tests
+Enable debug logging:
 
 ```bash
-bun test
-```
+echo '{"session_id":"test","transcript_path":"/tmp","cwd":"/tmp","hook_event_name":"Stop"}' \
+  | VIBE_HAPTIC_DEBUG=1 node hooks/haptic-hook.js
 
-### Type Checking
-
-```bash
-bun run typecheck
-```
-
-### Linting & Formatting
-
-This project uses [Biome](https://biomejs.dev/) for code quality.
-
-```bash
-# Check for issues
-bun run lint
-
-# Auto-fix issues
-bun run lint:fix
-```
-
-## Testing with Agents
-
-### Claude Code
-
-Load the plugin directly from your local directory:
-
-```bash
-claude --plugin-dir ./
-```
-
-### OpenCode
-
-Reference the local build in your `opencode.jsonc`:
-
-```jsonc
-{
-  "plugins": [
-    "file:///absolute/path/to/vibe-haptic/dist/index.js"
-  ]
-}
-```
-
-## Testing Haptic Patterns
-
-Use the built-in CLI to test patterns without running a full agent:
-
-```bash
-# Play a named pattern
-bun run play dopamine
-
-# Play a custom beat
-bun run play "66 44 66"
+cat ~/.preply-vibe-haptic-debug.log
 ```
 
 ## Native Module
 
-The native module wraps macOS `MultitouchSupport.framework` using [napi-rs](https://napi.rs):
+The native module (`native/src/lib.rs`) wraps macOS's private `MultitouchSupport.framework` via [napi-rs](https://napi.rs).
 
-```rust
-// Trigger haptic feedback
-MTActuatorActuate(actuator, actuation_id, 0, 0.0, intensity);
+Key exports:
+- `listDevices()` — enumerate all haptic-capable trackpads with their IDs and built-in status
+- `actuate(actuationId, intensity)` — fire haptic on the auto-selected device
+- `actuateWithDeviceId(deviceId, actuationId, intensity)` — fire on a specific device
+
+The built binary (`native/preply-vibe-haptic-native.node`) is committed to the repo so most contributors don't need Rust installed.
+
+## Architecture
+
 ```
-
-- **actuation_id**: 3 (minimal) to 6 (strong)
-- **intensity**: 0.0 to 2.0
-
-The framework is private but stable across macOS versions.
-
-## Pull Request Guidelines
-
-1. Keep changes focused — one feature or fix per PR
-2. Add tests for new functionality
-3. Ensure all checks pass (`bun test`, `bun run typecheck`, `bun run lint`)
-4. Update documentation if needed
+hooks/haptic-hook.js   ← bundled entry point invoked by Claude Code hooks
+src/
+  haptic.ts            ← HapticEngine: loads native module, resolves device, plays patterns
+  patterns.ts          ← built-in pattern library with beat notation
+  config.ts            ← loads ~/.claude/vibe-haptic.json
+  types.ts             ← shared types
+  claude/hook.ts       ← Claude Code hook handler (reads stdin, fires events)
+  bin/setup.ts         ← interactive setup UI
+native/src/lib.rs      ← Rust/NAPI-RS native module
+```
