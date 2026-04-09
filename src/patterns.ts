@@ -11,6 +11,8 @@ export const DEFAULT_PATTERNS: Record<string, PatternConfig & { label: string }>
   heartbeat: { label: 'Heartbeat  — lub-dub pulse',        beat: '6/0.4 6/1.0   6/0.4 6/1.0' },
   pulse:     { label: 'Pulse      — rising build-up',      beat: '3/0.5 4/0.7 5/0.9 6/1.1' },
   dopamine:  { label: 'Dopamine   — reward burst',         beat: '6666666 5/1.0 4/1.0 3/1.0', intensity: 0.1 },
+  tutu:      { label: 'Tutu       — tut-tu tut-tu tu tutu', beat: '6/1.0 4/0.6  6/1.0 4/0.6  4/0.6 66/1.0' },
+  knock4:    { label: 'Knock4     — 4 taps, pause, 2 taps', beat: '6/1.0 6/1.0 6/1.0 6/1.0    66/1.0' },
   // --- prompt/alert patterns ---
   alert:     { label: 'Alert      — soft-hard-soft',       beat: '6/0.5 6/1.0 6/0.5' },
   chirp:     { label: 'Chirp      — rising tap sequence',  beat: '3/0.8 4/0.8 5/0.8 6/0.8' },

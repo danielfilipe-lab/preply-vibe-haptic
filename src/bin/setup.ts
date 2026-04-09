@@ -33,7 +33,7 @@ function loadConfig(): Record<string, unknown> {
   return {}
 }
 
-const STOP_PATTERNS  = ['vibe', 'knock', 'thud', 'confirm', 'heartbeat', 'pulse', 'dopamine']
+const STOP_PATTERNS  = ['vibe', 'knock', 'thud', 'confirm', 'heartbeat', 'pulse', 'dopamine', 'tutu', 'knock4']
 const ALERT_PATTERNS = ['alert', 'chirp', 'tick', 'noise', 'vibe', 'knock']
 
 const RESET = '\x1b[0m'; const DIM = '\x1b[2m'; const GREEN = '\x1b[32m'
