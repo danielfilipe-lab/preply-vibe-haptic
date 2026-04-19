@@ -5,8 +5,10 @@ const entrypoints = [
   'src/index.ts',
   'src/claude/index.ts',
   'src/opencode/index.ts',
+  'src/codex/index.ts',
   'src/bin/haptic.ts',
   'src/bin/haptic-hook.ts',
+  'src/bin/codex-haptic-hook.ts',
 ]
 
 const result = await Bun.build({
@@ -44,32 +46,39 @@ for (const output of result.outputs) {
 
 execSync('bunx tsc --emitDeclarationOnly --declaration --outDir dist', { stdio: 'inherit' })
 
-// Bundle hook for Claude Code marketplace (committed to git)
-const hookResult = await Bun.build({
-  entrypoints: ['src/bin/haptic-hook.ts'],
-  outdir: 'hooks',
-  target: 'node',
-  format: 'esm',
-  splitting: false,
-  minify: false,
-  external: [],
-})
+// Bundle hooks for Claude Code and Codex (committed to git)
+const hookBundles = [
+  { name: 'Claude', entrypoint: 'src/bin/haptic-hook.ts' },
+  { name: 'Codex', entrypoint: 'src/bin/codex-haptic-hook.ts' },
+]
 
-if (!hookResult.success) {
-  console.error('Hook bundle failed:')
-  for (const log of hookResult.logs) {
-    console.error(log)
-  }
-  process.exit(1)
-}
+for (const bundle of hookBundles) {
+  const hookResult = await Bun.build({
+    entrypoints: [bundle.entrypoint],
+    outdir: 'hooks',
+    target: 'node',
+    format: 'esm',
+    splitting: false,
+    minify: false,
+    external: [],
+  })
 
-for (const output of hookResult.outputs) {
-  if (output.path.endsWith('.js')) {
-    let content = await output.text()
-    if (content.includes('require(') && !content.includes('createRequire')) {
-      content = createRequireBanner + content
+  if (!hookResult.success) {
+    console.error(`${bundle.name} hook bundle failed:`)
+    for (const log of hookResult.logs) {
+      console.error(log)
     }
-    await Bun.write(output.path, content)
+    process.exit(1)
+  }
+
+  for (const output of hookResult.outputs) {
+    if (output.path.endsWith('.js')) {
+      let content = await output.text()
+      if (content.includes('require(') && !content.includes('createRequire')) {
+        content = createRequireBanner + content
+      }
+      await Bun.write(output.path, content)
+    }
   }
 }
 

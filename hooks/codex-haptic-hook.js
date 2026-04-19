@@ -2,7 +2,7 @@
 import { createRequire } from "node:module";
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
-// src/claude/hook.ts
+// src/codex/hook.ts
 import { appendFileSync } from "node:fs";
 import { homedir as homedir2 } from "node:os";
 
@@ -266,29 +266,26 @@ function createHapticEngine(agent) {
   return new HapticEngine(loadConfig(agent));
 }
 
-// src/claude/hook.ts
+// src/codex/hook.ts
 var DEBUG = process.env.VIBE_HAPTIC_DEBUG === "1";
 function debug(message, data) {
   if (!DEBUG)
     return;
   const logPath = `${homedir2()}/.preply-vibe-haptic-debug.log`;
   const timestamp = new Date().toISOString();
-  const logLine = data ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}
-` : `[${timestamp}] ${message}
+  const logLine = data ? `[${timestamp}] [codex] ${message}: ${JSON.stringify(data, null, 2)}
+` : `[${timestamp}] [codex] ${message}
 `;
   appendFileSync(logPath, logLine);
 }
 async function handleHookEvent(input) {
   debug("handleHookEvent called", input);
-  const engine = createHapticEngine("claude");
+  const engine = createHapticEngine("codex");
   if (input.hook_event_name === "Stop") {
     debug("Triggering stop event");
     await engine.triggerForEvent("stop");
-  } else if (input.hook_event_name === "Notification") {
-    debug("Triggering prompt event for notification", { notification_type: input.notification_type });
-    await engine.triggerForEvent("prompt");
   } else {
-    debug("Unknown hook event", { hook_event_name: input.hook_event_name });
+    debug("Unhandled hook event", { hook_event_name: input.hook_event_name });
   }
 }
 async function readStdin() {
@@ -313,5 +310,5 @@ async function main() {
   }
 }
 
-// src/bin/haptic-hook.ts
+// src/bin/codex-haptic-hook.ts
 main();

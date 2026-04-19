@@ -12,10 +12,10 @@ macOS Force Touch trackpads use a Taptic Engine (linear actuator) to simulate ph
 
 ## What Triggers It
 
-| Event | When |
-|-------|------|
-| `stop` | Claude finishes every response |
-| `prompt` | Claude needs input — permission requests, tool approvals |
+| Event | When | Claude Code | Codex | OpenCode |
+|-------|------|-------------|-------|----------|
+| `stop` | Agent finishes a response | ✓ | ✓ | ✓ |
+| `prompt` | Agent needs input (permissions, tool approvals) | ✓ | — | ✓ |
 
 ## Installation
 
@@ -75,6 +75,39 @@ Needs attention pattern
 - **T** repeats the current pattern on demand
 - **S** saves and exits
 
+### Codex
+
+Codex requires manual hook setup. First, enable hooks in `~/.codex/config.toml`:
+
+```toml
+[features]
+codex_hooks = true
+```
+
+Then add the hook to `~/.codex/hooks.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /path/to/vibe-haptic/hooks/codex-haptic-hook.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Replace `/path/to/vibe-haptic` with the absolute path to your cloned repo.
+
+> **Note:** Codex currently has no `Notification` hook event, so only the `stop` haptic (task complete) fires. The `prompt` haptic is not available in Codex.
+
 Preferences are saved to `~/.claude/vibe-haptic.json`.
 
 ## Patterns
@@ -97,7 +130,11 @@ Preferences are saved to `~/.claude/vibe-haptic.json`.
 
 ### Custom Patterns
 
-Add custom patterns to `~/.claude/vibe-haptic.json`:
+Add custom patterns to your config file:
+
+- **Claude Code**: `~/.claude/vibe-haptic.json`
+- **Codex**: `~/.codex/vibe-haptic.json` (falls back to Claude config if not present)
+- **OpenCode**: `~/.config/opencode/vibe-haptic.json`
 
 ```json
 {

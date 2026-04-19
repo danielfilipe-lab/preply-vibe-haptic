@@ -185,6 +185,6 @@ export class HapticEngine {
   }
 }
 
-export function createHapticEngine(agent?: 'claude' | 'opencode'): HapticEngine {
+export function createHapticEngine(agent?: 'claude' | 'opencode' | 'codex'): HapticEngine {
   return new HapticEngine(loadConfig(agent))
 }
